@@ -189,7 +189,17 @@
       showToast(`База загружена: ${allQuestions.length} вопросов`);
     } catch (err) {
       console.error(err);
-      showToast('Ошибка загрузки данных: ' + err.message, 5000);
+      // Видимая ошибка вместо молчаливого «977» в интерфейсе.
+      showErrorBanner('Не удалось загрузить базу вопросов. Проверьте, что файл dataset.json доступен серверу.');
+      showToast('Ошибка загрузки данных: ' + err.message, 6000);
+      return;
+    }
+
+    // Защита от пустого набора: если dataset.json вернулся, но не содержит
+    // вопросов (или был повреждён) — показываем ошибку, а не «977»-иллюзию.
+    if (!allQuestions.length) {
+      showErrorBanner('База вопросов пустая или повреждена (dataset.json). Проверьте сервер и путь к данным.');
+      return;
     }
   }
 
@@ -234,7 +244,9 @@
   }
 
   function updateSidebarStats() {
-    const total = allQuestions.length || 977;
+    // Показываем РЕАЛЬНО число загруженных вопросов, а не хардкод 977.
+    // Это устраняет «иллюзию загрузки»: при пустом наборе будет 0, а не 977.
+    const total = allQuestions.length;
     const answeredCount = Object.keys(progress.questionStats || {}).length;
     const correctCount = Object.values(progress.questionStats || {}).filter(s => s.lastResult).length;
     
@@ -248,6 +260,10 @@
     const percent = total > 0 ? Math.round((answeredCount / total) * 100) : 0;
     elements.overallPercentage.textContent = percent + '%';
     elements.overallProgressBar.style.width = percent + '%';
+
+    // «/ 977» в прогрессе тоже делаем динамическим.
+    const totalEl = document.getElementById('statsTotal');
+    if (totalEl) totalEl.textContent = total || 0;
   }
 
   function recordQuestionAnswer(questionId, isCorrect) {
@@ -370,12 +386,17 @@
   // ==========================================
 
   function startExam() {
-    // Generate exactly 14 questions: 1 from each section
+    // Generate exactly 14 questions: 1 from each section.
+    // Safe bypass: вопросы с менее чем 2 вариантами (без выбора) обходятся
+    // в пользу обычного вопроса из того же раздела. Это не меняет correct_index
+    // и правильные ответы, а лишь защищает экзамен от некорректных вопросов.
     examQuestions = [];
     sectionsList.forEach(sec => {
       const qInSec = allQuestions.filter(q => q.section === sec);
-      if (qInSec.length > 0) {
-        const randQ = qInSec[Math.floor(Math.random() * qInSec.length)];
+      const usable = qInSec.filter(q => Array.isArray(q.options) && q.options.length >= 2);
+      const pool = usable.length > 0 ? usable : qInSec;
+      if (pool.length > 0) {
+        const randQ = pool[Math.floor(Math.random() * pool.length)];
         examQuestions.push(randQ);
       }
     });
@@ -1358,6 +1379,26 @@
   // ==========================================
   // UTILITIES
   // ==========================================
+
+  // ==========================================
+  // ERROR BANNER (visible, replaces the '977' illusion on load failure)
+  // ==========================================
+  function showErrorBanner(msg) {
+    let banner = document.getElementById('loadErrorBanner');
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'loadErrorBanner';
+      banner.className = 'load-error-banner';
+      banner.style.cssText =
+        'position:fixed;top:0;left:0;right:0;z-index:9999;' +
+        'background:#8b2320;color:#fff;padding:12px 18px;' +
+        'font-family:sans-serif;font-size:0.95rem;text-align:center;' +
+        'box-shadow:0 2px 8px rgba(0,0,0,.4);';
+      document.body.appendChild(banner);
+    }
+    banner.textContent = msg;
+    banner.style.display = 'block';
+  }
 
   let toastTimer = null;
   function showToast(msg, duration = 2500) {
