@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+build_pyi/
+dist/
+user_progress.json
+images/
+Новая папка/
+Screenshot*
+*.jpg
+*.jpeg
+*.png
+*.exe
+*.pkg

@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Тренажер 1С:Профессионал (Платформа 8.3)</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22><text y=%2226%22 font-size=%2226%22>⚡</text></svg>">
+</head>
+<body class="theme-dark">
+  <div class="app-layout">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="brand-icon">1С</div>
+        <div class="brand-text">
+          <h2>1С:Профессионал</h2>
+          <span class="sub">Платформа 8.3 • Тренажер</span>
+        </div>
+      </div>
+
+      <nav class="nav-menu">
+        <button class="nav-item active" data-mode="exam">
+          <span class="icon">⏱️</span>
+          <span class="label">Режим «Экзамен»</span>
+          <span class="badge exam-badge">14 вопр.</span>
+        </button>
+        <button class="nav-item" data-mode="sections">
+          <span class="icon">📚</span>
+          <span class="label">По разделам</span>
+          <span class="badge" id="totalQuestionsCount">977</span>
+        </button>
+        <button class="nav-item" data-mode="mistakes">
+          <span class="icon">🎯</span>
+          <span class="label">Работа над ошибками</span>
+          <span class="badge danger" id="mistakesCount">0</span>
+        </button>
+        <button class="nav-item" data-mode="favorites">
+          <span class="icon">⭐</span>
+          <span class="label">Избранное</span>
+          <span class="badge warning" id="favoritesCount">0</span>
+        </button>
+        <button class="nav-item" data-mode="search">
+          <span class="icon">🔍</span>
+          <span class="label">База и поиск</span>
+        </button>
+      </nav>
+
+      <!-- Overall Stats Widget in Sidebar -->
+      <div class="sidebar-stats">
+        <div class="stats-header">
+          <span>Ваш прогресс</span>
+          <span id="overallPercentage">0%</span>
+        </div>
+        <div class="progress-bar-bg">
+          <div class="progress-bar-fill" id="overallProgressBar" style="width: 0%"></div>
+        </div>
+        <div class="stats-row">
+          <div><small>Пройдено:</small> <strong id="statsAnswered">0</strong> / 977</div>
+          <div><small>Верно:</small> <strong class="text-success" id="statsCorrect">0</strong></div>
+        </div>
+      </div>
+
+      <!-- Hotkeys Hint -->
+      <div class="hotkeys-box">
+        <div class="hotkeys-title">Горячие клавиши</div>
+        <div class="hotkey-row"><kbd>1</kbd> - <kbd>6</kbd> <span>Выбрать ответ</span></div>
+        <div class="hotkey-row"><kbd>Enter</kbd> / <kbd>Пробел</kbd> <span>Далее / Ответить</span></div>
+        <div class="hotkey-row"><kbd>S</kbd> <span>Оригинальный скрин</span></div>
+        <div class="hotkey-row"><kbd>F</kbd> <span>В избранное ⭐</span></div>
+        <div class="hotkey-row"><kbd>←</kbd> <kbd>→</kbd> <span>Предыдущий / След.</span></div>
+      </div>
+
+      <!-- Theme & Reset -->
+      <div class="sidebar-footer">
+        <button id="themeToggleBtn" class="btn-theme" title="Сменить тему">
+          <span id="themeIcon">☀️</span> <span id="themeText">Светлая тема</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Top Bar -->
+      <header class="topbar">
+        <div class="topbar-left">
+          <h1 id="currentModeTitle">Режим «Экзамен»</h1>
+          <span class="mode-desc" id="currentModeDesc">14 случайных вопросов по одному из каждого раздела. Время: 30 мин. Порог: 12 из 14.</span>
+        </div>
+        <div class="topbar-right" id="topbarControls">
+          <!-- Dynamic Controls depending on mode -->
+        </div>
+      </header>
+
+      <!-- View Containers -->
+      <div class="view-content">
+        <!-- MODE 1: EXAM VIEW -->
+        <div id="viewExam" class="view-panel active">
+          <!-- Exam Start Card (when not in progress) -->
+          <div id="examStartCard" class="card exam-intro-card">
+            <div class="exam-intro-icon">📋</div>
+            <h2>Симуляция официального экзамена 1С:Профессионал</h2>
+            <p>Экзамен состоит из <strong>14 вопросов</strong> (по одному из каждого из 14 тематических разделов базы).</p>
+            <div class="exam-rules">
+              <div class="rule-item">
+                <span class="rule-icon">⏳</span>
+                <div>
+                  <strong>30 минут</strong>
+                  <p>Ограничение по времени на все вопросы</p>
+                </div>
+              </div>
+              <div class="rule-item">
+                <span class="rule-icon">🏆</span>
+                <div>
+                  <strong>Проходной балл: 12 из 14</strong>
+                  <p>Допускается не более 2 ошибок</p>
+                </div>
+              </div>
+              <div class="rule-item">
+                <span class="rule-icon">🔄</span>
+                <div>
+                  <strong>Свободная навигация</strong>
+                  <p>Можно возвращаться и менять ответы до сдачи</p>
+                </div>
+              </div>
+            </div>
+            <button id="startExamBtn" class="btn btn-primary btn-lg">Начать экзамен</button>
+            
+            <div id="examHistoryBox" class="exam-history mt-4" style="display: none;">
+              <h3>История попыток сдачи</h3>
+              <div id="examHistoryList" class="history-list"></div>
+            </div>
+          </div>
+
+          <!-- Exam Active Screen -->
+          <div id="examActiveContainer" style="display: none;">
+            <div class="exam-header-bar">
+              <div class="exam-nav-grid" id="examNavGrid"></div>
+              <div class="exam-timer-box">
+                <span class="timer-icon">⏳</span>
+                <span id="examTimer" class="timer-text">30:00</span>
+                <button id="finishExamBtn" class="btn btn-danger btn-sm">Завершить экзамен</button>
+              </div>
+            </div>
+            <div id="examQuestionCard" class="card question-card"></div>
+          </div>
+
+          <!-- Exam Result Screen -->
+          <div id="examResultContainer" style="display: none;">
+            <div class="card result-card" id="examResultCard"></div>
+            <div id="examReviewContainer" class="review-container mt-4"></div>
+          </div>
+        </div>
+
+        <!-- MODE 2: SECTIONS VIEW -->
+        <div id="viewSections" class="view-panel">
+          <div class="sections-controls-bar">
+            <div class="form-group">
+              <label for="sectionSelect">Раздел:</label>
+              <select id="sectionSelect" class="form-control"></select>
+            </div>
+            <div class="form-group">
+              <label for="sectionOrder">Порядок:</label>
+              <select id="sectionOrder" class="form-control">
+                <option value="direct">По порядку (1..N)</option>
+                <option value="random">В случайном порядке</option>
+                <option value="unanswered">Только неотвеченные</option>
+              </select>
+            </div>
+            <div class="form-group checkbox-group">
+              <label>
+                <input type="checkbox" id="instantFeedbackToggle" checked>
+                Мгновенная проверка ответа
+              </label>
+            </div>
+            <button id="resetSectionFilterBtn" class="btn btn-secondary">Сброс</button>
+          </div>
+
+          <div class="question-wrapper">
+            <div class="question-pagination-bar">
+              <button id="secPrevBtn" class="btn btn-outline">← Назад (A)</button>
+              <div class="pagination-indicator">
+                Вопрос <span id="secCurrentIndex">1</span> из <span id="secTotalCount">0</span>
+              </div>
+              <button id="secNextBtn" class="btn btn-outline">Вперед (D) →</button>
+            </div>
+
+            <div id="sectionQuestionCard" class="card question-card"></div>
+          </div>
+        </div>
+
+        <!-- MODE 3: MISTAKES VIEW -->
+        <div id="viewMistakes" class="view-panel">
+          <div id="mistakesEmptyCard" class="card empty-card" style="display: none;">
+            <div class="empty-icon">🎉</div>
+            <h2>Список ошибок пуст!</h2>
+            <p>Вы еще не допустили ошибок или успешно отработали все проблемные вопросы.</p>
+          </div>
+          <div id="mistakesActiveContainer" class="question-wrapper">
+            <div class="question-pagination-bar">
+              <button id="mistakePrevBtn" class="btn btn-outline">← Назад (A)</button>
+              <div class="pagination-indicator">
+                Ошибка <span id="mistakeCurrentIndex">1</span> из <span id="mistakeTotalCount">0</span>
+              </div>
+              <button id="mistakeNextBtn" class="btn btn-outline">Вперед (D) →</button>
+              <button id="clearCurrentMistakeBtn" class="btn btn-outline btn-success" title="Убрать этот вопрос из ошибок">✓ Я запомнил</button>
+            </div>
+            <div id="mistakeQuestionCard" class="card question-card"></div>
+          </div>
+        </div>
+
+        <!-- MODE 4: FAVORITES VIEW -->
+        <div id="viewFavorites" class="view-panel">
+          <div id="favoritesEmptyCard" class="card empty-card" style="display: none;">
+            <div class="empty-icon">⭐</div>
+            <h2>В избранном пока нет вопросов</h2>
+            <p>Нажимайте клавишу <kbd>F</kbd> или на значок звездочки при просмотре вопросов, чтобы добавить их сюда для быстрого повторения.</p>
+          </div>
+          <div id="favoritesActiveContainer" class="question-wrapper">
+            <div class="question-pagination-bar">
+              <button id="favPrevBtn" class="btn btn-outline">← Назад (A)</button>
+              <div class="pagination-indicator">
+                Избранный <span id="favCurrentIndex">1</span> из <span id="favTotalCount">0</span>
+              </div>
+              <button id="favNextBtn" class="btn btn-outline">Вперед (D) →</button>
+            </div>
+            <div id="favoritesQuestionCard" class="card question-card"></div>
+          </div>
+        </div>
+
+        <!-- MODE 5: SEARCH & DATABASE VIEW -->
+        <div id="viewSearch" class="view-panel">
+          <div class="search-header-bar">
+            <div class="search-input-wrapper">
+              <span class="search-icon">🔍</span>
+              <input type="text" id="searchInput" placeholder="Поиск по вопросу, ответу или ключевым словам..." class="form-control search-field">
+              <button id="clearSearchBtn" class="btn-clear" style="display: none;">✕</button>
+            </div>
+            <div class="search-filter-wrapper">
+              <select id="searchSectionFilter" class="form-control">
+                <option value="">Все 14 разделов</option>
+              </select>
+            </div>
+          </div>
+          <div class="search-stats-bar">
+            <span>Найдено вопросов: <strong id="searchResultsCount">0</strong></span>
+          </div>
+          <div id="searchResultsList" class="search-results-list"></div>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <!-- MODAL: ORIGINAL SCREENSHOT VIEWER -->
+  <div id="screenshotModal" class="modal-overlay">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title-box">
+          <h3 id="modalTitle">Оригинальный скриншот теста</h3>
+          <span id="modalFilename" class="modal-filename"></span>
+        </div>
+        <div class="modal-actions">
+          <a id="modalDownloadLink" class="btn btn-sm btn-outline" download target="_blank">Открыть файл</a>
+          <button id="modalCloseBtn" class="modal-close">&times;</button>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="modal-img-container">
+          <img id="modalScreenshotImg" src="" alt="Оригинальный скриншот">
+        </div>
+      </div>
+      <div class="modal-footer">
+        <span class="hint">Нажмите <kbd>Esc</kbd> или кликните вне окна, чтобы закрыть. Клавиша <kbd>S</kbd> открывает / закрывает.</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION -->
+  <div id="toast" class="toast"></div>
+
+  <script src="app.js"></script>
+</body>
+</html>
