@@ -11,3 +11,9 @@ Screenshot*
 *.png
 *.exe
 *.pkg
+
+# Тестовые артефакты
+node_modules/
+dist_test/
+build_pyi/
+.npm/

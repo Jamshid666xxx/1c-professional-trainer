@@ -18,23 +18,48 @@ import posixpath
 DEFAULT_PORT = 8765
 
 # ── Определение путей ───────────────────────────────────────────────────
+# Бандл (index.html, styles.css, app.js, dataset.json) лежит внутри EXE
+# (PyInstaller _MEIPASS, либо папка static_web в dev-режиме).
+# Данные/прогресс — рядом с .exe (или рядом со скриптом в dev-режиме).
+# Ключевое отличие от прежней версии: dataset.json теперь считается
+# «bundled data» и ищется в бандле, если его нет рядом с .exe — поэтому
+# EXE из dist/ снова отдаёт вопросы без внешних файлов.
+
 def resource_path(relative):
-    """Путь к статическим ресурсам (index.html, css, js), бандлятся в exe."""
+    """Путь к бандлу (index.html / css / js / dataset.json)."""
     if hasattr(sys, '_MEIPASS'):
         return os.path.join(sys._MEIPASS, relative)
     return os.path.join(os.path.dirname(os.path.abspath(__file__)), relative)
 
-def data_path(relative=''):
-    """Путь к данным, которые лежат рядом с .exe (или рядом со скриптом)."""
+def data_dir():
+    """Путь к данным/прогрессу, которые лежат рядом с .exe (или скриптом)."""
     if getattr(sys, 'frozen', False):
-        base = os.path.dirname(sys.executable)
-    else:
-        base = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base, relative) if relative else base
+        return os.path.dirname(sys.executable)
+    return os.path.dirname(os.path.abspath(__file__))
 
-STATIC_DIR  = resource_path('static_web')  # index.html / css / js (внутри exe)
-DATA_DIR    = data_path()                   # dataset.json, images/, Новая папка/
-PROGRESS_FILE = data_path('user_progress.json')
+def resolve_path(relative):
+    """Найти файл в двух местах: сначала в бандле, затем рядом с .exe.
+
+    Это устраняет причину пустых вопросов при работе EXE из dist/:
+    если dataset.json не лежит рядом с .exe, берётся бандл-копия.
+    """
+    # 1) бандл внутри EXE (при сборке через PyInstaller)
+    bundled = resource_path(relative)
+    if os.path.isfile(bundled):
+        return bundled
+    # 2) рядом с .exe (или рядом со скриптом в dev-режиме)
+    external = os.path.join(data_dir(), relative)
+    if os.path.isfile(external):
+        return external
+    # 3) относительный путь в бандле, если relative — поддиректория
+    cand = os.path.join(resource_path('.'), relative)
+    if os.path.isfile(cand):
+        return cand
+    return None
+
+STATIC_DIR  = resource_path('.')  # бандл (index.html / css / js / dataset.json)
+DATA_DIR    = data_dir()           # user_progress.json (рядом с .exe)
+PROGRESS_FILE = os.path.join(DATA_DIR, 'user_progress.json')
 
 
 # ── HTTP Handler ─────────────────────────────────────────────────────────
@@ -106,16 +131,12 @@ class TrainerHandler(http.server.BaseHTTPRequestHandler):
         if url_path in ('/', ''):
             url_path = '/index.html'
 
-        # Static web files (bundled inside exe)
-        web_candidates = ['index.html', 'styles.css', 'app.js']
-        fname = url_path.lstrip('/')
-        if fname in web_candidates:
-            self.send_file(os.path.join(STATIC_DIR, fname))
-            return
-
-        # Data files (next to exe): dataset.json, images/, Новая папка/
-        local = self._safe_data_path(url_path)
-        if local and os.path.isfile(local):
+        # Единый поиск: сначала в бандле (внутри EXE / папка static_web),
+        # затем рядом с .exe (или рядом со скриптом в dev-режиме).
+        # dataset.json, index.html, styles.css, app.js теперь находятся
+        # автоматически — поэтому EXE из dist/ снова отдаёт вопросы.
+        local = self._resolve(url_path)
+        if local:
             self.send_file(local)
             return
 
@@ -128,16 +149,34 @@ class TrainerHandler(http.server.BaseHTTPRequestHandler):
             return
         self.send_error(404, 'Not Found')
 
-    def _safe_data_path(self, url_path):
-        """Convert URL path → absolute local path, preventing path traversal."""
-        # Remove leading slash, normalize separators
-        rel = url_path.lstrip('/')
-        # Join with data dir
-        candidate = os.path.normpath(os.path.join(DATA_DIR, rel))
-        # Security: must stay inside DATA_DIR
-        if not candidate.startswith(DATA_DIR):
+    def _resolve(self, url_path):
+        """Найти файл для URL: сначала в бандле, затем рядом с .exe/скриптом.
+
+        Безопасность: путь нормализуется (.. и . убираются), поэтому
+        traversal вне базовых директорий невозможен.
+        """
+        rel = url_path.lstrip('/').replace('\\', '/')
+        parts = []
+        for p in rel.split('/'):
+            if p in ('', '.'):
+                continue
+            if p == '..':
+                if parts:
+                    parts.pop()
+                continue
+            parts.append(p)
+        rel = '/'.join(parts)
+        if not rel or rel.startswith('/') or rel.startswith('..'):
             return None
-        return candidate
+        # 1) бандл (внутри EXE, либо папка static_web в dev-режиме)
+        bundled = os.path.join(resource_path('.'), rel)
+        if os.path.isfile(bundled):
+            return bundled
+        # 2) рядом с .exe (или рядом со скриптом в dev-режиме)
+        external = os.path.join(data_dir(), rel)
+        if os.path.isfile(external):
+            return external
+        return None
 
     def _handle_get_progress(self):
         if os.path.exists(PROGRESS_FILE):

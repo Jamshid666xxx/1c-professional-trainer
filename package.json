@@ -1,0 +1,6 @@
+{
+  "name": "1c-professional-trainer",
+  "private": true,
+  "scripts": { "test": "node tests/run_app_tests.js" },
+  "devDependencies": { "jsdom": "^30.0.0" }
+}
